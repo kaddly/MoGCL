@@ -1,12 +1,12 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from .NeighborEncoder import NeighborEncoder
-from .ViewAttention import ViewAttention
+from model.NeighborEncoder import NeighborEncoder
+from model.ViewAttention import ViewAttention
 
 
 class MVEncoder(nn.Module):
-    def __init__(self, feature_dim, embedding_size, embedding_u_size, num_view, attn_size, feat_drop, attn_drop):
+    def __init__(self, feature_dim, embedding_size, embedding_u_size, num_view, feat_drop, attn_size, attn_drop):
         """
         feature_dim: 节点的特征维度
         embedding_size: baseEmbedding嵌入的维度
@@ -20,8 +20,8 @@ class MVEncoder(nn.Module):
         self.attn_size = attn_size
         self.feature_dim = feature_dim
 
-        self.embed_trans = nn.Parameter(torch.FloatTensor(self.feature_dim, embedding_size))
-        self.u_embed_trans = nn.Parameter(torch.FloatTensor(self.num_view, self.feature_dim, embedding_u_size))
+        self.embed_trans = nn.Parameter(torch.FloatTensor(self.feature_dim, embedding_size), requires_grad=True)
+        self.u_embed_trans = nn.Parameter(torch.FloatTensor(self.num_view, self.feature_dim, embedding_u_size), requires_grad=True)
 
         if feat_drop > 0:
             self.feat_drop = nn.Dropout(feat_drop)

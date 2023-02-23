@@ -1,5 +1,6 @@
 import torch
-from .Attention import Attention
+from model.Attention import Attention
+import torch.nn.functional as F
 
 
 class ViewAttention(Attention):
@@ -12,7 +13,7 @@ class ViewAttention(Attention):
         # inputs_trans.shape=(batch_size, num_view, attn_dim)
         inputs_trans = torch.matmul(inputs, self.fc)
         # attention.shape=(batch_size, 1, num_view)
-        attention = self.softmax(
+        attention = F.softmax(
             torch.matmul(
                 self.tanh(inputs_trans), attn_curr
             ).squeeze(2),

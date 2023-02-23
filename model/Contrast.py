@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from .MultiViewEncoder import MVEncoder
+from model.MultiViewEncoder import MVEncoder
 
 
 class MoGCL(nn.Module):
@@ -28,7 +28,7 @@ class MoGCL(nn.Module):
         self.encoder_k = MVEncoder(features.shape[-1], dim, dim, num_view, feat_drop, attn_size, attn_drop)
 
         if mlp:
-            dim_mlp = self.encoder_q.fc.weight.shape[0]
+            dim_mlp = self.encoder_q.fc.weight.shape[1]
             self.encoder_q.fc = nn.Sequential(
                 nn.Linear(dim_mlp, dim_mlp), nn.ELU(), self.encoder_q.fc
             )
@@ -68,7 +68,7 @@ class MoGCL(nn.Module):
             pos_nodes, pos_nodes_neigh = pos_node_inputs
             indexed = pos_nodes.reshape(-1)
             k = self.encoder_k(self.features[indexed],
-                               self.features[pos_nodes_neigh.reshape(-1, self.num_pos, self.num_view, self.num_neigh)])
+                               self.features[pos_nodes_neigh.reshape(-1, self.num_view, self.num_neigh)])
 
         self._dequeue_and_enqueue(indexed, k)
         k = k.reshape(-1, self.num_pos, self.dim)  # (batch_size, num_pos, dim)
@@ -87,3 +87,12 @@ class MoGCL(nn.Module):
 
         return logits, labels
 
+
+if __name__ == '__main__':
+    features = torch.ones(1024, 32)
+    model = MoGCL(features)
+    nodes = (torch.ones(32).long(), torch.ones(32, 3, 10).long())
+    pos_nodes = (torch.ones(32, 5).long(), torch.ones(32, 5, 3, 10).long())
+    neg_nodes = torch.ones(32, 1024).long()
+    print(model)
+    logits, labels = model(nodes, pos_nodes, neg_nodes)

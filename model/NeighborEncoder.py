@@ -1,5 +1,6 @@
 import torch
-from .Attention import Attention
+from model.Attention import Attention
+import torch.nn.functional as F
 
 
 class NeighborEncoder(Attention):
@@ -14,7 +15,7 @@ class NeighborEncoder(Attention):
         inputs = inputs.reshape(-1, nb, h)
         inputs_trans = torch.matmul(inputs, self.fc)
         # shape:(batch_size * num_view, 1, num_neighbor)
-        attention = self.softmax(
+        attention = F.softmax(
             torch.matmul(
                 self.tanh(inputs_trans), attn_curr
             ).squeeze(2),
