@@ -6,7 +6,7 @@ from .ViewAttention import ViewAttention
 
 
 class MVEncoder(nn.Module):
-    def __init__(self, feature_dim, embedding_size, embedding_u_size, num_view, attn_size, attn_drop):
+    def __init__(self, feature_dim, embedding_size, embedding_u_size, num_view, attn_size, feat_drop, attn_drop):
         """
         feature_dim: 节点的特征维度
         embedding_size: baseEmbedding嵌入的维度
@@ -22,6 +22,11 @@ class MVEncoder(nn.Module):
 
         self.embed_trans = nn.Parameter(torch.FloatTensor(self.feature_dim, embedding_size))
         self.u_embed_trans = nn.Parameter(torch.FloatTensor(self.num_view, self.feature_dim, embedding_u_size))
+
+        if feat_drop > 0:
+            self.feat_drop = nn.Dropout(feat_drop)
+        else:
+            self.feat_drop = lambda x: x
 
         self.NeighborEncoder = NeighborEncoder(self.embedding_u_size, self.attn_size, attn_drop)
         self.View_attention = ViewAttention(self.embedding_u_size, self.attn_size, attn_drop)
@@ -39,7 +44,7 @@ class MVEncoder(nn.Module):
         node_embed_neighbors = torch.bmm(node_neigh.permute(1, 0, 2, 3).reshape(self.num_view, -1, self.feature_dim),
                                          self.u_embed_trans).reshape(self.num_view, inputs.shape[0], -1,
                                                                      self.embedding_u_size).permute(1, 0, 2, 3)
-        node_view_embed = self.NeighborEncoder(node_embed_neighbors)  # (batch_size, num_view, embedding_u_size)
+        node_view_embed = self.NeighborEncoder(self.feat_drop(node_embed_neighbors))  # (batch_size, num_view, embedding_u_size)
         node_u_embed = self.View_attention(node_view_embed)  # (batch_size, embedding_u_size)
         node_embed = self.fc(torch.concat([node_embed, torch.matmul(node_u_embed, self.trans_weights)], dim=1))
         last_node_embed = F.normalize(node_embed, dim=1)

@@ -8,12 +8,13 @@ class ViewAttention(Attention):
 
     def forward(self, inputs):
         # inputs.shape=(batch_size, num_view, hidden_dim)
+        attn_curr = self.attn_drop(self.trans_weights)
         # inputs_trans.shape=(batch_size, num_view, attn_dim)
         inputs_trans = torch.matmul(inputs, self.fc)
         # attention.shape=(batch_size, 1, num_view)
         attention = self.softmax(
             torch.matmul(
-                self.tanh(inputs_trans), self.trans_weights
+                self.tanh(inputs_trans), attn_curr
             ).squeeze(2),
             dim=1
         ).unsqueeze(1)

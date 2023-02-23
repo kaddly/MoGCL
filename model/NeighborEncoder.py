@@ -8,6 +8,7 @@ class NeighborEncoder(Attention):
 
     def forward(self, inputs):
         # inputs.shape:(batch_size, num_view, num_neighbor, hidden_dim)
+        attn_curr = self.attn_drop(self.trans_weights)
         n, nv, nb, h = inputs.shape
         # shape:(batch_size * num_view, num_neighbor, hidden_dim)
         inputs = inputs.reshape(-1, nb, h)
@@ -15,7 +16,7 @@ class NeighborEncoder(Attention):
         # shape:(batch_size * num_view, 1, num_neighbor)
         attention = self.softmax(
             torch.matmul(
-                self.tanh(inputs_trans), self.trans_weights
+                self.tanh(inputs_trans), attn_curr
             ).squeeze(2),
             dim=1
         ).unsqueeze(1)
