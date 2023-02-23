@@ -75,24 +75,11 @@ class MoGCL(nn.Module):
         # positive logits: N x num_pos
         l_pos = torch.einsum("nc,npc->np", [q, k])
         # negative logits: N x (num_nodes-num_pos)
-        l_neg = torch.einsum("nc,cnk->nk", [q, self.queue.clone()[:, neg_node_inputs].detach()])
+        l_neg = torch.einsum("nc,cnk->nk", [q, self.queue.clone().detach()[:, neg_node_inputs]])
         # logits: N x num_nodes
         logits = torch.cat([l_pos, l_neg], dim=1)
 
         # apply temperature
         logits /= self.T
 
-        # labels: positive key indicators
-        labels = torch.zeros(logits.shape[0], dtype=torch.long).cuda()
-
-        return logits, labels
-
-
-if __name__ == '__main__':
-    features = torch.ones(1024, 32)
-    model = MoGCL(features)
-    nodes = (torch.ones(32).long(), torch.ones(32, 3, 10).long())
-    pos_nodes = (torch.ones(32, 5).long(), torch.ones(32, 5, 3, 10).long())
-    neg_nodes = torch.ones(32, 1024).long()
-    print(model)
-    logits, labels = model(nodes, pos_nodes, neg_nodes)
+        return logits

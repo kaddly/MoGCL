@@ -1,8 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from model.NeighborEncoder import NeighborEncoder
-from model.ViewAttention import ViewAttention
+from model.Attention import NeighborEncoder, ViewAttention
 
 
 class MVEncoder(nn.Module):
@@ -11,7 +10,7 @@ class MVEncoder(nn.Module):
         feature_dim: 节点的特征维度
         embedding_size: baseEmbedding嵌入的维度
         embedding_u_size: edgeEmbedding嵌入的维度
-        num_view:
+        num_view: 视图个数
         """
         super(MVEncoder, self).__init__()
         self.embedding_size = embedding_size
