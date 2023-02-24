@@ -9,5 +9,5 @@ class SigmoidCELoss(nn.Module):
 
     def forward(self, inputs):
         logits = torch.exp(inputs)
-        logits = torch.sum(logits[:, :self.num_pos], dim=1) / (torch.sum(logits, dim=1) + 1e-8)
+        logits = torch.sum(logits[:, :self.num_pos], dim=1).view(-1, 1) / (torch.sum(logits, dim=1).view(-1, 1) + 1e-8)
         return -torch.log(logits).mean()

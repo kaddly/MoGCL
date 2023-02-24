@@ -103,7 +103,7 @@ class Collate_fn:
                     pos_neigh.append(random.choices(candidates, k=self.num_neigh))
                 node_pos_neigh.append(pos_neigh)
             nodes_pos_neigh.append(node_pos_neigh)
-        return (torch.tensor(nodes), torch.tensor(nodes_neigh)), (torch.tensor(nodes_pos), torch.tensor(nodes_pos_neigh)), torch.tensor(nodes_neg)
+        return torch.tensor(nodes), torch.tensor(nodes_neigh), torch.tensor(nodes_pos), torch.tensor(nodes_pos_neigh), torch.tensor(nodes_neg)
 
 
 class test_dataset:
