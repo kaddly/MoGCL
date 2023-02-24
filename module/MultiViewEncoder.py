@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from model.Attention import NeighborEncoder, ViewAttention
+from module.Attention import NeighborEncoder, ViewAttention
 
 
 class MVEncoder(nn.Module):

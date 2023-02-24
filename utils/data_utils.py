@@ -106,11 +106,25 @@ class Collate_fn:
         return (torch.tensor(nodes), torch.tensor(nodes_neigh)), (torch.tensor(nodes_pos), torch.tensor(nodes_pos_neigh)), torch.tensor(nodes_neg)
 
 
+class test_dataset:
+    def __init__(self, test_nodes, test_labels, all_neighbors, num_neigh):
+        self.test_nodes = test_nodes
+        self.test_labels = test_labels
+        self.all_neighbors = all_neighbors
+        self.num_neigh = num_neigh
+
+    def test_loader(self, device):
+        nodes, neigh, labels = [], [], []
+        for i, node in enumerate(self.test_nodes):
+            nodes.append(node)
+            neigh.append(random.choices(self.all_neighbors, k=self.num_neigh))
+            labels.append(self.test_labels[i])
+        return torch.tensor(nodes, device=device), torch.tensor(neigh, device=device), torch.tensor(labels, device=device)
+
+
 def load_data(args):
     relation_list, feat_data, labels = read_data(args.dataset)
     # train_test_split
-    np.random.seed(args.seed)
-    random.seed(args.seed)
     if args.dataset == 'yelp':
         index = list(range(len(labels)))
         idx_train, idx_test, y_train, y_test = train_test_split(index, labels, stratify=labels,
@@ -124,4 +138,12 @@ def load_data(args):
     train_dataset = MultiViewDataset(idx_train)
     collate_fn = Collate_fn(all_neighbors, all_pos, all_neg, args.num_neigh)
     train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size,collate_fn=collate_fn)
-    return train_iter, feat_data, (idx_test, y_test)
+    test_loader = test_dataset(idx_test, y_test, all_neighbors, args.num_neigh)
+    return train_iter, feat_data, test_loader
+
+
+def setup_logging(run_name):
+    os.makedirs("models", exist_ok=True)
+    os.makedirs("results", exist_ok=True)
+    os.makedirs(os.path.join("models", run_name), exist_ok=True)
+    os.makedirs(os.path.join("results", run_name), exist_ok=True)

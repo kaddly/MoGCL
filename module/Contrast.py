@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from model.MultiViewEncoder import MVEncoder
+from module.MultiViewEncoder import MVEncoder
 
 
 class MoGCL(nn.Module):
