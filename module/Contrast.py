@@ -38,6 +38,8 @@ class MoGCL(nn.Module):
             for model in self.encoder_q.fc:
                 if isinstance(model, nn.Linear):
                     nn.init.xavier_normal_(model.weight, gain=1.414)
+                    if model.bias is not None:
+                        model.bias.data.fill_(0.0)
 
         for param_q, param_k in zip(self.encoder_q.parameters(), self.encoder_k.parameters()):
             param_k.data.copy_(param_q.data)  # initialize

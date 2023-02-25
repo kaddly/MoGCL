@@ -2,10 +2,13 @@ import os
 import shutil
 import time
 import datetime
+import numpy as np
+from sklearn.metrics import f1_score, roc_auc_score, recall_score
+from imblearn.over_sampling import RandomOverSampler
 import torch
 from torch import nn
-from utils import setup_logging
-from module import MoGCL
+from utils import load_data, setup_logging
+from module import MoGCL, LogReg
 from train.metric_utils import AverageMeter, ProgressMeter
 from train.optimizer_utils import create_lr_scheduler
 from train.loss_utils import SigmoidCELoss
@@ -18,11 +21,13 @@ def save_checkpoint(state, is_best, file_dir, filename="checkpoint.pth.tar"):
                         os.path.join("models", file_dir, "model_best.pth.tar"))
 
 
-def train(train_iter, feat_data, val_loader, index_loader, args):
+def train(args):
     setup_logging(args.dataset)
     # save train info
     results_file = os.path.join("results", args.dataset,
                                 "results{}.txt".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
+    # load data
+    train_iter, feat_data, val_loader, index_loader, test_loader = load_data(args)
     device = args.device
     model = MoGCL(feat_data, args.dim, args.num_view, args.num_pos, args.num_neigh, args.attn_size, args.feat_drop,
                   args.attn_drop, len(feat_data), args.mco_m, args.moco_t, args.is_mlp)
@@ -81,7 +86,8 @@ def train(train_iter, feat_data, val_loader, index_loader, args):
             print('Early stopping!')
             args.resume = os.path.join("models", args.dataset, "checkpoint_{:04d}.pth.tar".format(best_t))
             break
-    embeds = get_embeds(model, index_loader, device, args)
+    all_embeds = get_embeds(model, index_loader, device, args)
+    evaluate(all_embeds, *test_loader, args)
 
 
 def train_one_epoch(train_loader, model, criterion, optimizer, lr_scheduler, epoch, device, args):
@@ -138,13 +144,75 @@ def get_embeds(model, index_loader, device, args):
         model.eval()
         if not device:
             device = next(iter(model.parameters())).device
-    nodes, nodes_neigh = [data.to(device) for data in index_loader]
+    nodes, nodes_neigh = [torch.tensor(data).to(device) for data in index_loader]
     embeds = model.get_embeds(nodes, nodes_neigh)
+    all_embeds = {}
+    embeds = embeds.cpu().data.numpy()
+    for i, node in enumerate(index_loader[0]):
+        all_embeds[node] = embeds[i]
     with open(os.path.join("embeds", args.dataset, 'nodes_embeds.txt'), "wb") as f:
-        f.writelines(embeds.cpu().data.numpy())
+        f.writelines(all_embeds)
         f.close()
-    return embeds
+    return all_embeds
 
 
-def evaluate(embeds):
-    pass
+def evaluate(all_embeds, train_idx, val_idx, train_labels, val_labels, args):
+    ros = RandomOverSampler(random_state=args.seed)
+    train_resample_x, train_resample_y = ros.fit(train_idx, train_labels)
+    val_resample_x, val_resample_y = ros.fit(val_idx, val_labels)
+    train_embeds, val_embeds = map(all_embeds, train_resample_x), map(all_embeds, val_resample_x)
+    device = args.device
+
+    auc_score_list = []
+    macro_f1s = []
+    macro_recalls = []
+
+    criterion = nn.CrossEntropyLoss()
+
+    for _ in range(50):
+        log = LogReg(args.dim, 2)
+        opt = torch.optim.AdamW(log.parameters(), args.lr, weight_decay=args.weight_decay)
+        log.to(device)
+
+        val_macro_f1s = []
+        val_macro_recalls = []
+
+        logits_list = []
+        for iter_ in range(200):
+            # train
+            log.train()
+            opt.zero_grad()
+
+            logits = log(train_embeds)
+            loss = criterion(logits, train_resample_y)
+
+            loss.backward()
+            opt.step()
+
+            # val
+            logits = log(val_embeds)
+            preds = torch.argmax(logits, dim=1)
+
+            val_f1_macro = f1_score(val_resample_y.cpu(), preds.cpu(), average='macro')
+            val_recall_macro = recall_score(val_resample_y.cpu(), preds.cpu(), average='macro')
+
+            val_macro_f1s.append(val_f1_macro)
+            val_macro_recalls.append(val_recall_macro)
+
+            logits_list.append(logits)
+
+        macro_f1s.append(max(val_macro_f1s))
+        macro_recalls.append(max(val_macro_recalls))
+
+        max_iter = val_macro_f1s.index(max(val_macro_f1s))
+
+        # auc
+        best_logits = logits_list[max_iter]
+        best_proba = nn.functional.softmax(best_logits, dim=1)
+        auc_score_list.append(
+            roc_auc_score(y_true=val_resample_y.detach().cpu().numpy(), y_score=best_proba.detach().cpu().numpy()))
+    print(
+        "\t[Classification] Macro-F1_mean: {:.4f} var: {:.4f} max: {:.4f}\nMacro-F1_mean: {:.4f} var: {:.4f} max: {:.4f}\nauc_mean: {:.4f} var: {:.4f} max: {:.4f}"
+        .format(np.mean(macro_f1s), np.var(macro_f1s), np.max(macro_f1s),
+                np.mean(macro_recalls), np.var(macro_recalls), np.max(macro_recalls),
+                np.mean(auc_score_list), np.var(auc_score_list), np.max(auc_score_list)))

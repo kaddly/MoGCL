@@ -114,7 +114,7 @@ def get_nodes_neigh(nodes, all_neighbors, num_neigh):
         for candidates in all_neighbors[node]:
             neigh.append(random.choices(candidates, k=num_neigh))
         nodes_neigh.append(neigh)
-    return (nodes, nodes_neigh)
+    return [nodes, nodes_neigh]
 
 
 def load_data(args):
@@ -122,13 +122,13 @@ def load_data(args):
     # train_test_split
     if args.dataset == 'yelp':
         index = list(range(len(labels)))
-        idx_train, idx_val = train_test_split(index, stratify=labels, test_size=args.test_size, random_state=2,
-                                              shuffle=True)
+        idx_train, idx_val, y_train, y_val = train_test_split(index, labels, stratify=labels, test_size=args.test_size,
+                                                              random_state=args.seed, shuffle=True)
     elif args.dataset == 'amz':
         index = list(range(3305, len(labels)))
         labels = labels[3305:]
-        idx_train, idx_val = train_test_split(index, stratify=labels, test_size=args.test_size, random_state=2,
-                                              shuffle=True)
+        idx_train, idx_val, y_train, y_val = train_test_split(index, labels, stratify=labels, test_size=args.test_size,
+                                                              random_state=args.seed, shuffle=True)
     else:
         raise ValueError("unsupported dataset")
     all_neighbors = generator_neighbors(list(range(len(labels))), relation_list)
@@ -136,7 +136,7 @@ def load_data(args):
     train_dataset = MultiViewDataset(idx_train)
     collate_fn = Collate_fn(all_neighbors, all_pos, all_neg, args.num_neigh)
     train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=collate_fn)
-    return train_iter, feat_data, collate_fn(idx_val), get_nodes_neigh(index, all_neighbors, args.num_neigh), labels
+    return train_iter, feat_data, collate_fn(idx_val), get_nodes_neigh(index, all_neighbors, args.num_neigh), (idx_train, idx_val, y_train, y_val)
 
 
 def setup_logging(dataset):
