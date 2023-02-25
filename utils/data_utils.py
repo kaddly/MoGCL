@@ -107,6 +107,16 @@ class Collate_fn:
                 torch.tensor(nodes_neg)]
 
 
+def get_nodes_neigh(nodes, all_neighbors, num_neigh):
+    nodes_neigh = []
+    for node in nodes:
+        neigh = []
+        for candidates in all_neighbors[node]:
+            neigh.append(random.choices(candidates, k=num_neigh))
+        nodes_neigh.append(neigh)
+    return (nodes, nodes_neigh)
+
+
 def load_data(args):
     relation_list, feat_data, labels = read_data(args.dataset)
     # train_test_split
@@ -126,7 +136,7 @@ def load_data(args):
     train_dataset = MultiViewDataset(idx_train)
     collate_fn = Collate_fn(all_neighbors, all_pos, all_neg, args.num_neigh)
     train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=collate_fn)
-    return train_iter, feat_data, idx_val, index, labels, collate_fn
+    return train_iter, feat_data, collate_fn(idx_val), get_nodes_neigh(index, all_neighbors, args.num_neigh), labels
 
 
 def setup_logging(dataset):

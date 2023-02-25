@@ -18,7 +18,7 @@ def save_checkpoint(state, is_best, file_dir, filename="checkpoint.pth.tar"):
                         os.path.join("models", file_dir, "model_best.pth.tar"))
 
 
-def train(train_iter, feat_data, idx_val, collate_fn, args):
+def train(train_iter, feat_data, val_loader, index_loader, args):
     setup_logging(args.dataset)
     # save train info
     results_file = os.path.join("results", args.dataset,
@@ -49,7 +49,7 @@ def train(train_iter, feat_data, idx_val, collate_fn, args):
     model.to(device)
     for epoch in range(args.start_eopch, args.epochs):
         mean_loss, lr = train_one_epoch(train_iter, model, criterion, optimizer, lr_scheduler, epoch, device, args)
-        val_loss = evaluate(model, criterion, idx_val, collate_fn, device)
+        val_loss = val_evaluate(model, criterion, val_loader, device)
         val_info = f"val_loss: {val_loss:>5.4f}"
         print(val_info)
         with open(results_file, "a") as f:
@@ -79,10 +79,9 @@ def train(train_iter, feat_data, idx_val, collate_fn, args):
         )
         if cnt_wait == args.patience:
             print('Early stopping!')
-            args.resume = "checkpoint_{:04d}.pth.tar".format(best_t)
+            args.resume = os.path.join("models", args.dataset, "checkpoint_{:04d}.pth.tar".format(best_t))
             break
-    model.eval()
-    model.get_embeds()
+    embeds = get_embeds(model, index_loader, device, args)
 
 
 def train_one_epoch(train_loader, model, criterion, optimizer, lr_scheduler, epoch, device, args):
@@ -122,11 +121,30 @@ def train_one_epoch(train_loader, model, criterion, optimizer, lr_scheduler, epo
     return losses.avg, lr
 
 
-def evaluate(model, criterion, idx_val, collate_fn, device=None):
+def val_evaluate(model, criterion, val_loader, device=None):
     if isinstance(model, nn.Module):
         model.eval()
         if not device:
             device = next(iter(model.parameters())).device
-    nodes, nodes_neigh, pos_nodes, pos_nodes_neigh, neg_index = [data.to(device) for data in collate_fn(idx_val)]
+    nodes, nodes_neigh, pos_nodes, pos_nodes_neigh, neg_index = [data.to(device) for data in val_loader]
     output = model((nodes, nodes_neigh), (pos_nodes, pos_nodes_neigh), neg_index)
     return criterion(output)
+
+
+def get_embeds(model, index_loader, device, args):
+    checkpoint = torch.load(args.resume)
+    model.load_state_dict(checkpoint["state_dict"])
+    if isinstance(model, nn.Module):
+        model.eval()
+        if not device:
+            device = next(iter(model.parameters())).device
+    nodes, nodes_neigh = [data.to(device) for data in index_loader]
+    embeds = model.get_embeds(nodes, nodes_neigh)
+    with open(os.path.join("embeds", args.dataset, 'nodes_embeds.txt'), "wb") as f:
+        f.writelines(embeds.cpu().data.numpy())
+        f.close()
+    return embeds
+
+
+def evaluate(embeds):
+    pass
