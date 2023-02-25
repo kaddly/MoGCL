@@ -3,6 +3,7 @@ import shutil
 import time
 import datetime
 import numpy as np
+import pickle
 from sklearn.metrics import f1_score, roc_auc_score, recall_score
 from imblearn.over_sampling import RandomOverSampler
 import torch
@@ -150,8 +151,8 @@ def get_embeds(model, index_loader, device, args):
     embeds = embeds.cpu().data.numpy()
     for i, node in enumerate(index_loader[0]):
         all_embeds[node] = embeds[i]
-    with open(os.path.join("embeds", args.dataset, 'nodes_embeds.txt'), "wb") as f:
-        f.writelines(all_embeds)
+    with open(os.path.join("embeds", args.dataset, 'nodes_embeds.pkl'), "wb") as f:
+        pickle.dump(all_embeds, f)
         f.close()
     return all_embeds
 
@@ -213,10 +214,10 @@ def evaluate(all_embeds, train_idx, val_idx, train_labels, val_labels, args):
             roc_auc_score(y_true=val_resample_y.detach().cpu().numpy(), y_score=best_proba.detach().cpu().numpy()))
     print(
         "\t[Classification] Macro-F1_mean: {:.4f} var: {:.4f} max: {:.4f}\nMacro-F1_mean: {:.4f} var: {:.4f} max: {:.4f}\nauc_mean: {:.4f} var: {:.4f} max: {:.4f}"
-        .format(np.mean(macro_f1s), np.var(macro_f1s), np.max(macro_f1s),
-                np.mean(macro_recalls), np.var(macro_recalls), np.max(macro_recalls),
-                np.mean(auc_score_list), np.var(auc_score_list), np.max(auc_score_list)))
+            .format(np.mean(macro_f1s), np.var(macro_f1s), np.max(macro_f1s),
+                    np.mean(macro_recalls), np.var(macro_recalls), np.max(macro_recalls),
+                    np.mean(auc_score_list), np.var(auc_score_list), np.max(auc_score_list)))
     f = open(os.path.join("result", args.dataset, "result.txt"), "a")
-    f.write(str(np.mean(macro_f1s))+"\t"+str(np.mean(macro_recalls))+"\t"+str(np.mean(auc_score_list))+"\n"+
-            str(np.max(macro_f1s))+"\t"+str(np.max(macro_recalls))+"\t"+str(np.max(auc_score_list))+"\n")
+    f.write(str(np.mean(macro_f1s)) + "\t" + str(np.mean(macro_recalls)) + "\t" + str(np.mean(auc_score_list)) + "\n" +
+            str(np.max(macro_f1s)) + "\t" + str(np.max(macro_recalls)) + "\t" + str(np.max(auc_score_list)) + "\n")
     f.close()

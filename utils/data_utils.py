@@ -2,6 +2,7 @@ import os
 import random
 import numpy as np
 import scipy.io as sio
+import pickle
 from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -13,7 +14,7 @@ def read_YelpChi(path=os.path.join(os.path.abspath('.'), 'data'), file_name='Yel
     net_rur = yelp['net_rur']
     net_rtr = yelp['net_rtr']
     net_rsr = yelp['net_rsr']
-    feat_data = yelp['features'].todense.A
+    feat_data = yelp['features']
     labels = yelp['label'].flatten()
     return [net_rur, net_rtr, net_rsr], feat_data, labels
 
@@ -24,7 +25,7 @@ def read_Amazon(path=os.path.join(os.path.abspath('.'), 'data'), file_name='Amaz
     net_upu = amz['net_upu']
     net_usu = amz['net_usu']
     net_uvu = amz['net_uvu']
-    feat_data = amz['features'].todense.A
+    feat_data = amz['features']
     labels = amz['label'].flatten()
     return [net_upu, net_usu, net_uvu], feat_data, labels
 
@@ -36,7 +37,17 @@ def read_data(data_set):
         return read_YelpChi()
 
 
-def generator_pos_neg_nodes(nodes, relation_list, num_pos):
+def generator_pos_neg_nodes(nodes, relation_list, args):
+    if os.path.isfile(os.path.join('data', args.dataset + '_pos.pkl')) and os.path.isfile(
+            os.path.join('data', args.dataset + '_neg.pkl')):
+        f_pos_read = open(os.path.join('.', 'data', args.dataset + '_pos.pkl'), 'rb')
+        f_neg_read = open(os.path.join('.', 'data', args.dataset + '_neg.pkl'), 'rb')
+        nodes_pos = pickle.load(f_pos_read)
+        nodes_neg = pickle.load(f_neg_read)
+        f_pos_read.close()
+        f_neg_read.close()
+        return nodes_pos, nodes_neg
+    num_pos = args.num_pos
     nodes_pos, nodes_neg = [], []
     relation_homo = None
     for relation in relation_list:
@@ -50,20 +61,34 @@ def generator_pos_neg_nodes(nodes, relation_list, num_pos):
             nodes_pos.append(pos + [node for _ in (num_pos - len(keys))])
             nodes_neg.append(np.delete(nodes, pos + node).tolist()[:len(nodes) - num_pos])
         else:
-            pos_neg = sorted(relation_homo[node].nonzero()[1].tolist(), key=keys)
-            nodes_pos.append(pos_neg[:num_pos])
+            pos_neg = relation_homo[node].nonzero()[1][np.argsort(keys)]
+            nodes_pos.append(pos_neg[:num_pos].tolist)
             nodes_neg.append(np.delete(nodes, nodes_pos[node]).tolist())
+    f_pos_save = open(os.path.join('data', args.dataset + '_pos.pkl'), 'wb')
+    f_neg_save = open(os.path.join('data', args.dataset + '_neg.pkl'), 'wb')
+    pickle.dump(nodes_pos, f_pos_save)
+    pickle.dump(nodes_neg, f_neg_save)
+    f_pos_save.close()
+    f_neg_save.close()
     return nodes_pos, nodes_neg
 
 
-def generator_neighbors(nodes, relation_list):
+def generator_neighbors(nodes, relation_list, args):
+    if os.path.isfile(os.path.join('data', args.dataset + '_neighbors.pkl')):
+        f_read = open(os.path.join('.', 'data', args.dataset + '_neighbors.pkl'), 'rb')
+        all_neighbors = pickle.load(f_read)
+        f_read.close()
+        return all_neighbors
     all_neighbors = [[[] for _ in range(len(relation_list))] for _ in range(len(nodes))]
     for i, relation in enumerate(relation_list):
         for node in nodes:
             neigh = relation[node].nonzero()[1]
-            if not neigh:
-                neigh = [node]
+            if not neigh.any():
+                neigh = np.array([node])
             all_neighbors[node][i].append(neigh)
+    f_save = open(os.path.join('data', args.dataset + '_neighbors.pkl'), 'wb')
+    pickle.dump(all_neighbors, f_save)
+    f_save.close()
     return all_neighbors
 
 
@@ -131,12 +156,13 @@ def load_data(args):
                                                               random_state=args.seed, shuffle=True)
     else:
         raise ValueError("unsupported dataset")
-    all_neighbors = generator_neighbors(list(range(len(feat_data))), relation_list)
-    all_pos, all_neg = generator_pos_neg_nodes(list(range(len(feat_data))), relation_list, args.num_pos)
+    all_neighbors = generator_neighbors(list(range(feat_data.shape[0])), relation_list, args)
+    all_pos, all_neg = generator_pos_neg_nodes(list(range(feat_data.shape[0])), relation_list, args)
     train_dataset = MultiViewDataset(idx_train)
     collate_fn = Collate_fn(all_neighbors, all_pos, all_neg, args.num_neigh)
     train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=collate_fn)
-    return train_iter, feat_data, collate_fn(idx_val), get_nodes_neigh(index, all_neighbors, args.num_neigh), (idx_train, idx_val, y_train, y_val)
+    return train_iter, feat_data, collate_fn(idx_val), get_nodes_neigh(index, all_neighbors, args.num_neigh), (
+        idx_train, idx_val, y_train, y_val)
 
 
 def setup_logging(dataset):
