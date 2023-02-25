@@ -33,7 +33,7 @@ def train(args):
                   args.attn_drop, len(feat_data), args.mco_m, args.moco_t, args.is_mlp)
     criterion = SigmoidCELoss(args.num_pos)
     optimizer = torch.optim.AdamW(model.parameters(), args.lr, weight_decay=args.weight_decay)
-    lr_scheduler = create_lr_scheduler(optimizer, 1, args.num_epoch)
+    lr_scheduler = create_lr_scheduler(optimizer, 1, args.epochs)
 
     cnt_wait = 0
     best = 1e9
@@ -52,7 +52,7 @@ def train(args):
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
     model.to(device)
-    for epoch in range(args.start_eopch, args.epochs):
+    for epoch in range(args.start_epoch, args.epochs):
         mean_loss, lr = train_one_epoch(train_iter, model, criterion, optimizer, lr_scheduler, epoch, device, args)
         val_loss = val_evaluate(model, criterion, val_loader, device)
         val_info = f"val_loss: {val_loss:>5.4f}"
@@ -171,7 +171,7 @@ def evaluate(all_embeds, train_idx, val_idx, train_labels, val_labels, args):
 
     for _ in range(50):
         log = LogReg(args.dim, 2)
-        opt = torch.optim.AdamW(log.parameters(), args.lr, weight_decay=args.weight_decay)
+        opt = torch.optim.AdamW(log.parameters(), args.eva_lr, weight_decay=args.eva_wd)
         log.to(device)
 
         val_macro_f1s = []

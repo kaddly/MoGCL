@@ -1,5 +1,4 @@
 from scipy.sparse import csr_matrix
-import torch
 
 
 class HeteroGraph(object):
