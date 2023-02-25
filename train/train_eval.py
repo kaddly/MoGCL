@@ -216,3 +216,7 @@ def evaluate(all_embeds, train_idx, val_idx, train_labels, val_labels, args):
         .format(np.mean(macro_f1s), np.var(macro_f1s), np.max(macro_f1s),
                 np.mean(macro_recalls), np.var(macro_recalls), np.max(macro_recalls),
                 np.mean(auc_score_list), np.var(auc_score_list), np.max(auc_score_list)))
+    f = open(os.path.join("result", args.dataset, "result.txt"), "a")
+    f.write(str(np.mean(macro_f1s))+"\t"+str(np.mean(macro_recalls))+"\t"+str(np.mean(auc_score_list))+"\n"+
+            str(np.max(macro_f1s))+"\t"+str(np.max(macro_recalls))+"\t"+str(np.max(auc_score_list))+"\n")
+    f.close()
