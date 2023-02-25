@@ -1,22 +1,28 @@
 import argparse
 import sys
 
-argv = sys.argv
-dataset = argv[1]
+dataset = "Amazon"
 
 
-def acm_params():
+def amazon_params():
     parser = argparse.ArgumentParser()
     parser.add_argument()
+    args, _ = parser.parse_known_args()
+    return args
+
+
+def yelp_params():
+    parser = argparse.ArgumentParser()
+    parser.add_argument()
+    args, _ = parser.parse_known_args()
+    return args
 
 
 def set_params():
-    if dataset == "acm":
-        args = acm_params()
-    # elif dataset == "dblp":
-    #     args = dblp_params()
-    # elif dataset == "aminer":
-    #     args = aminer_params()
-    # elif dataset == "freebase":
-    #     args = freebase_params()
+    if dataset == "amz":
+        args = amazon_params()
+    elif dataset == "yelp":
+        args = yelp_params()
+    else:
+        raise ValueError("unsupported dataset")
     return args

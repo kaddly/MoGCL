@@ -47,8 +47,8 @@ def generator_pos_neg_nodes(nodes, relation_list, num_pos):
         keys = relation_homo[node].data
         if len(keys) < num_pos:
             pos = relation_homo[node].nonzero()[1].tolist()
-            nodes_pos.append(pos + [node for _ in (num_pos-len(keys))])
-            nodes_neg.append(np.delete(nodes, pos+node).tolist()[:len(nodes)-num_pos])
+            nodes_pos.append(pos + [node for _ in (num_pos - len(keys))])
+            nodes_neg.append(np.delete(nodes, pos + node).tolist()[:len(nodes) - num_pos])
         else:
             pos_neg = sorted(relation_homo[node].nonzero()[1].tolist(), key=keys)
             nodes_pos.append(pos_neg[:num_pos])
@@ -103,23 +103,8 @@ class Collate_fn:
                     pos_neigh.append(random.choices(candidates, k=self.num_neigh))
                 node_pos_neigh.append(pos_neigh)
             nodes_pos_neigh.append(node_pos_neigh)
-        return torch.tensor(nodes), torch.tensor(nodes_neigh), torch.tensor(nodes_pos), torch.tensor(nodes_pos_neigh), torch.tensor(nodes_neg)
-
-
-class test_dataset:
-    def __init__(self, test_nodes, test_labels, all_neighbors, num_neigh):
-        self.test_nodes = test_nodes
-        self.test_labels = test_labels
-        self.all_neighbors = all_neighbors
-        self.num_neigh = num_neigh
-
-    def test_loader(self, device):
-        nodes, neigh, labels = [], [], []
-        for i, node in enumerate(self.test_nodes):
-            nodes.append(node)
-            neigh.append(random.choices(self.all_neighbors, k=self.num_neigh))
-            labels.append(self.test_labels[i])
-        return torch.tensor(nodes, device=device), torch.tensor(neigh, device=device), torch.tensor(labels, device=device)
+        return [torch.tensor(nodes), torch.tensor(nodes_neigh), torch.tensor(nodes_pos), torch.tensor(nodes_pos_neigh),
+                torch.tensor(nodes_neg)]
 
 
 def load_data(args):
@@ -127,23 +112,27 @@ def load_data(args):
     # train_test_split
     if args.dataset == 'yelp':
         index = list(range(len(labels)))
-        idx_train, idx_test, y_train, y_test = train_test_split(index, labels, stratify=labels,
-                                                                test_size=args.test_size, random_state=2, shuffle=True)
+        idx_train, idx_val = train_test_split(index, stratify=labels, test_size=args.test_size, random_state=2,
+                                              shuffle=True)
     elif args.dataset == 'amz':
         index = list(range(3305, len(labels)))
-        idx_train, idx_test, y_train, y_test = train_test_split(index, labels[3305:], stratify=labels[3305:],
-                                                                test_size=args.test_size, random_state=2, shuffle=True)
+        labels = labels[3305:]
+        idx_train, idx_val = train_test_split(index, stratify=labels, test_size=args.test_size, random_state=2,
+                                              shuffle=True)
+    else:
+        raise ValueError("unsupported dataset")
     all_neighbors = generator_neighbors(list(range(len(labels))), relation_list)
     all_pos, all_neg = generator_pos_neg_nodes(list(range(len(labels))), relation_list, args.num_pos)
     train_dataset = MultiViewDataset(idx_train)
     collate_fn = Collate_fn(all_neighbors, all_pos, all_neg, args.num_neigh)
-    train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size,collate_fn=collate_fn)
-    test_loader = test_dataset(idx_test, y_test, all_neighbors, args.num_neigh)
-    return train_iter, feat_data, test_loader
+    train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size, collate_fn=collate_fn)
+    return train_iter, feat_data, idx_val, index, labels, collate_fn
 
 
-def setup_logging(run_name):
+def setup_logging(dataset):
     os.makedirs("models", exist_ok=True)
     os.makedirs("results", exist_ok=True)
-    os.makedirs(os.path.join("models", run_name), exist_ok=True)
-    os.makedirs(os.path.join("results", run_name), exist_ok=True)
+    os.makedirs("embeds", exist_ok=True)
+    os.makedirs(os.path.join("models", dataset), exist_ok=True)
+    os.makedirs(os.path.join("results", dataset), exist_ok=True)
+    os.makedirs(os.path.join("embeds", dataset), exist_ok=True)

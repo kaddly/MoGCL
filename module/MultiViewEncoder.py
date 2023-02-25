@@ -20,8 +20,9 @@ class MVEncoder(nn.Module):
         self.feature_dim = feature_dim
 
         self.embed_trans = nn.Parameter(torch.FloatTensor(self.feature_dim, embedding_size), requires_grad=True)
+        nn.init.xavier_normal_(self.embed_trans, gain=1.414)
         self.u_embed_trans = nn.Parameter(torch.FloatTensor(self.num_view, self.feature_dim, embedding_u_size), requires_grad=True)
-
+        nn.init.xavier_normal_(self.u_embed_trans, gain=1.414)
         if feat_drop > 0:
             self.feat_drop = nn.Dropout(feat_drop)
         else:
@@ -33,7 +34,9 @@ class MVEncoder(nn.Module):
         self.trans_weights = nn.Parameter(
             torch.FloatTensor(self.embedding_u_size, self.embedding_size)
         )
+        nn.init.xavier_normal_(self.trans_weights, gain=1.414)
         self.fc = nn.Linear(self.embedding_size*2, self.embedding_size)
+        nn.init.xavier_normal_(self.fc.weight, gain=1.414)
 
     def forward(self, inputs, node_neigh):
         # inputs.size=(batch_size, feature_dim)

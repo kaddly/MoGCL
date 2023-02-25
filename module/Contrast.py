@@ -19,7 +19,7 @@ class MoGCL(nn.Module):
         self.T = T
 
         # create the encoders
-        self.features = features
+        self.features = torch.Tensor(features)
         self.num_view = num_view
         self.num_pos = num_pos
         self.num_neigh = num_neigh
@@ -35,6 +35,9 @@ class MoGCL(nn.Module):
             self.encoder_k.fc = nn.Sequential(
                 nn.Linear(dim_mlp, dim_mlp), nn.ELU(), self.encoder_k.fc
             )
+            for model in self.encoder_q.fc:
+                if isinstance(model, nn.Linear):
+                    nn.init.xavier_normal_(model.weight, gain=1.414)
 
         for param_q, param_k in zip(self.encoder_q.parameters(), self.encoder_k.parameters()):
             param_k.data.copy_(param_q.data)  # initialize
@@ -83,3 +86,6 @@ class MoGCL(nn.Module):
         logits /= self.T
 
         return logits
+
+    def get_embeds(self, nodes, nodes_neigh):
+        return self.encoder_q(self.features[nodes], self.features[nodes_neigh])
