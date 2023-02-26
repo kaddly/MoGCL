@@ -33,8 +33,8 @@ def set_model_params():
     args.attn_size = 64
     args.feat_drop = 0.8
     args.attn_drop = 0.8
-    args.mco_m = 0.99
-    args.mco_t = 0.5
+    args.moco_m = 0.99
+    args.moco_t = 0.5
     args.is_mlp = True
 
 

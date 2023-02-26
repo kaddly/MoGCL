@@ -19,7 +19,7 @@ class MoGCL(nn.Module):
         self.T = T
 
         # create the encoders
-        self.features = torch.Tensor(features)
+        self.features = features
         self.num_view = num_view
         self.num_pos = num_pos
         self.num_neigh = num_neigh

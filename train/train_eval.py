@@ -30,8 +30,8 @@ def train(args):
     # load data
     train_iter, feat_data, val_loader, index_loader, test_loader = load_data(args)
     device = args.device
-    model = MoGCL(feat_data, args.dim, args.num_view, args.num_pos, args.num_neigh, args.attn_size, args.feat_drop,
-                  args.attn_drop, len(feat_data), args.mco_m, args.moco_t, args.is_mlp)
+    model = MoGCL(torch.FloatTensor(feat_data).to(device), args.dim, args.num_view, args.num_pos, args.num_neigh,
+                  args.attn_size, args.feat_drop, args.attn_drop, len(feat_data), args.moco_m, args.moco_t, args.is_mlp)
     criterion = SigmoidCELoss(args.num_pos)
     optimizer = torch.optim.AdamW(model.parameters(), args.lr, weight_decay=args.weight_decay)
     lr_scheduler = create_lr_scheduler(optimizer, 1, args.epochs)

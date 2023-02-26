@@ -14,7 +14,7 @@ def read_YelpChi(path=os.path.join(os.path.abspath('.'), 'data'), file_name='Yel
     net_rur = yelp['net_rur']
     net_rtr = yelp['net_rtr']
     net_rsr = yelp['net_rsr']
-    feat_data = yelp['features']
+    feat_data = yelp['features'].todense().A
     labels = yelp['label'].flatten()
     return [net_rur, net_rtr, net_rsr], feat_data, labels
 
@@ -25,7 +25,7 @@ def read_Amazon(path=os.path.join(os.path.abspath('.'), 'data'), file_name='Amaz
     net_upu = amz['net_upu']
     net_usu = amz['net_usu']
     net_uvu = amz['net_uvu']
-    feat_data = amz['features']
+    feat_data = amz['features'].todense().A
     labels = amz['label'].flatten()
     return [net_upu, net_usu, net_uvu], feat_data, labels
 
@@ -80,7 +80,7 @@ def generator_neighbors(nodes, relation_list, args):
             neigh = relation[node].nonzero()[1].tolist()
             if not neigh:
                 neigh = [node]
-            all_neighbors[node][i].append(neigh)
+            all_neighbors[node][i].extend(neigh)
     f_save = open(os.path.join('data', args.dataset + '_neighbors.pkl'), 'wb')
     pickle.dump(all_neighbors, f_save)
     f_save.close()
@@ -107,6 +107,15 @@ class Collate_fn:
         self.all_pos = all_pos
         self.all_neg = all_neg
 
+    def get_nodes_neigh(self, nodes):
+        nodes_neigh = []
+        for node in nodes:
+            neigh = []
+            for candidates in self.all_neighbors[node]:
+                neigh.append(random.choices(candidates, k=self.num_neigh))
+            nodes_neigh.append(neigh)
+        return [nodes, nodes_neigh]
+
     def __call__(self, data):
         nodes, nodes_neigh, nodes_pos, nodes_pos_neigh, nodes_neg = [], [], [], [], []
         for node in data:
@@ -128,16 +137,6 @@ class Collate_fn:
                 torch.tensor(nodes_neg)]
 
 
-def get_nodes_neigh(nodes, all_neighbors, num_neigh):
-    nodes_neigh = []
-    for node in nodes:
-        neigh = []
-        for candidates in all_neighbors[node]:
-            neigh.append(random.choices(candidates, k=num_neigh))
-        nodes_neigh.append(neigh)
-    return [nodes, nodes_neigh]
-
-
 def load_data(args):
     relation_list, feat_data, labels = read_data(args.dataset)
     # train_test_split
@@ -157,8 +156,7 @@ def load_data(args):
     train_dataset = MultiViewDataset(idx_train)
     collate_fn = Collate_fn(all_neighbors, all_pos, all_neg, args.num_neigh)
     train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=4, collate_fn=collate_fn)
-    return train_iter, feat_data, collate_fn(idx_val), get_nodes_neigh(index, all_neighbors, args.num_neigh), (
-        idx_train, idx_val, y_train, y_val)
+    return train_iter, feat_data, collate_fn(idx_val), collate_fn.get_nodes_neigh(index), (idx_train, idx_val, y_train, y_val)
 
 
 def setup_logging(dataset):
