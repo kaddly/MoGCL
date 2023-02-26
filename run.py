@@ -17,7 +17,8 @@ def set_train_params():
     args.start_epoch = 0
 
     args.lr = 0.008
-    args.weight_decay = 1e-5
+    args.weight_decay = 0
+    args.momentum = 0.9
 
     args.resume = ""
     args.arch = 'MoGCL'+str(args.dim)
@@ -31,8 +32,8 @@ def set_train_params():
 def set_model_params():
     args.dim = 64
     args.attn_size = 64
-    args.feat_drop = 0.8
-    args.attn_drop = 0.8
+    args.feat_drop = 0.1
+    args.attn_drop = 0.3
     args.moco_m = 0.99
     args.moco_t = 0.5
     args.is_mlp = True

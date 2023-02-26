@@ -34,7 +34,7 @@ def train(args):
                   args.attn_size, args.feat_drop, args.attn_drop, len(feat_data), args.moco_m, args.moco_t, args.is_mlp)
     criterion = SigmoidCELoss(args.num_pos)
     optimizer = torch.optim.AdamW(model.parameters(), args.lr, weight_decay=args.weight_decay)
-    lr_scheduler = create_lr_scheduler(optimizer, 1, args.epochs)
+    lr_scheduler = create_lr_scheduler(optimizer, len(train_iter), args.epochs)
 
     cnt_wait = 0
     best = 1e9
@@ -169,10 +169,15 @@ def evaluate(train_idx, val_idx, train_labels, val_labels, args, all_embeds=None
         else:
             raise FileExistsError('please train before')
     ros = RandomOverSampler(random_state=args.seed)
-    train_resample_x, train_resample_y = ros.fit(train_idx, train_labels)
-    val_resample_x, val_resample_y = ros.fit(val_idx, val_labels)
+    train_resample_x, train_resample_y = ros.fit_resample(np.array(train_idx).reshape(-1, 1),
+                                                          np.array(train_labels))
+    val_resample_x, val_resample_y = ros.fit(np.array(val_idx).reshape(-1, 1), np.array(val_labels).reshape(-1, 1))
     train_embeds, val_embeds = map(all_embeds, train_resample_x), map(all_embeds, val_resample_x)
     device = args.device
+
+    train_embeds, val_embeds = torch.Tensor(train_embeds).to(device), torch.Tensor(val_embeds).to(device)
+    train_resample_y, val_resample_y = torch.tensor(train_resample_y).to(device), torch.tensor(val_resample_y).to(
+        device)
 
     auc_score_list = []
     macro_f1s = []

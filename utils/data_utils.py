@@ -80,7 +80,7 @@ def generator_neighbors(nodes, relation_list, args):
             neigh = relation[node].nonzero()[1].tolist()
             if not neigh:
                 neigh = [node]
-            all_neighbors[node][i].extend(neigh)
+            all_neighbors[node][i].extend(random.choices(neigh, k=args.num_neigh))
     f_save = open(os.path.join('data', args.dataset + '_neighbors.pkl'), 'wb')
     pickle.dump(all_neighbors, f_save)
     f_save.close()
@@ -100,20 +100,16 @@ class MultiViewDataset(Dataset):
 
 
 class Collate_fn:
-    def __init__(self, all_neighbors, all_pos, all_neg, num_neigh):
+    def __init__(self, all_neighbors, all_pos, all_neg):
         assert len(all_neighbors) == len(all_pos) == len(all_neg)
         self.all_neighbors = all_neighbors
-        self.num_neigh = num_neigh
         self.all_pos = all_pos
         self.all_neg = all_neg
 
     def get_nodes_neigh(self, nodes):
         nodes_neigh = []
         for node in nodes:
-            neigh = []
-            for candidates in self.all_neighbors[node]:
-                neigh.append(random.choices(candidates, k=self.num_neigh))
-            nodes_neigh.append(neigh)
+            nodes_neigh.append(self.all_neighbors[node])
         return [nodes, nodes_neigh]
 
     def __call__(self, data):
@@ -122,17 +118,11 @@ class Collate_fn:
             nodes.append(node)
             nodes_pos.append(self.all_pos[node])
             nodes_neg.append(self.all_neg[node])
-            neigh = []
-            for candidates in self.all_neighbors[node]:
-                neigh.append(random.choices(candidates, k=self.num_neigh))
-            nodes_neigh.append(neigh)
-            node_pos_neigh = []
+            nodes_neigh.append(self.all_neighbors[node])
+            pos_neigh = []
             for pos in nodes_pos[-1]:
-                pos_neigh = []
-                for candidates in self.all_neighbors[pos]:
-                    pos_neigh.append(random.choices(candidates, k=self.num_neigh))
-                node_pos_neigh.append(pos_neigh)
-            nodes_pos_neigh.append(node_pos_neigh)
+                pos_neigh.append(self.all_neighbors[pos])
+            nodes_pos_neigh.append(pos_neigh)
         return [torch.tensor(nodes), torch.tensor(nodes_neigh), torch.tensor(nodes_pos), torch.tensor(nodes_pos_neigh),
                 torch.tensor(nodes_neg)]
 
