@@ -155,7 +155,7 @@ def load_data(args):
     all_pos, all_neg = generator_pos_neg_nodes(list(range(feat_data.shape[0])), relation_list, args)
     train_dataset = MultiViewDataset(idx_train)
     collate_fn = Collate_fn(all_neighbors, all_pos, all_neg, args.num_neigh)
-    train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=4, collate_fn=collate_fn)
+    train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=1, collate_fn=collate_fn)
     return train_iter, feat_data, collate_fn(idx_val), collate_fn.get_nodes_neigh(index), (idx_train, idx_val, y_train, y_val)
 
 

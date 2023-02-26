@@ -19,7 +19,7 @@ class MoGCL(nn.Module):
         self.T = T
 
         # create the encoders
-        self.features = features
+        self.register_buffer("features", torch.FloatTensor(features))
         self.num_view = num_view
         self.num_pos = num_pos
         self.num_neigh = num_neigh
@@ -80,7 +80,7 @@ class MoGCL(nn.Module):
         # positive logits: N x num_pos
         l_pos = torch.einsum("nc,npc->np", [q, k])
         # negative logits: N x (num_nodes-num_pos)
-        l_neg = torch.einsum("nc,cnk->nk", [q, self.queue.clone().detach()[:, neg_node_inputs]])
+        l_neg = torch.einsum("nc,cnk->nk", [q, self.queue[:, neg_node_inputs].clone().detach()])
         # logits: N x num_nodes
         logits = torch.cat([l_pos, l_neg], dim=1)
 
@@ -89,5 +89,6 @@ class MoGCL(nn.Module):
 
         return logits
 
+    @torch.no_grad()
     def get_embeds(self, nodes, nodes_neigh):
         return self.encoder_q(self.features[nodes], self.features[nodes_neigh])

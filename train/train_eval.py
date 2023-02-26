@@ -30,7 +30,7 @@ def train(args):
     # load data
     train_iter, feat_data, val_loader, index_loader, test_loader = load_data(args)
     device = args.device
-    model = MoGCL(torch.FloatTensor(feat_data).to(device), args.dim, args.num_view, args.num_pos, args.num_neigh,
+    model = MoGCL(feat_data, args.dim, args.num_view, args.num_pos, args.num_neigh,
                   args.attn_size, args.feat_drop, args.attn_drop, len(feat_data), args.moco_m, args.moco_t, args.is_mlp)
     criterion = SigmoidCELoss(args.num_pos)
     optimizer = torch.optim.AdamW(model.parameters(), args.lr, weight_decay=args.weight_decay)
@@ -94,8 +94,8 @@ def train(args):
 def train_one_epoch(train_loader, model, criterion, optimizer, lr_scheduler, epoch, device, args):
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
-    losses = AverageMeter("Loss", ":.4e")
-    learning_rate = AverageMeter("lr", ':6.3f')
+    losses = AverageMeter("Loss", ":6.4f")
+    learning_rate = AverageMeter("lr", ':6.4f')
     progress = ProgressMeter(
         len(train_loader),
         [batch_time, data_time, losses, learning_rate],
@@ -134,8 +134,10 @@ def val_evaluate(model, criterion, val_loader, device=None):
         if not device:
             device = next(iter(model.parameters())).device
     nodes, nodes_neigh, pos_nodes, pos_nodes_neigh, neg_index = [data.to(device) for data in val_loader]
-    output = model((nodes, nodes_neigh), (pos_nodes, pos_nodes_neigh), neg_index)
-    return criterion(output)
+    with torch.no_grad():
+        output = model((nodes, nodes_neigh), (pos_nodes, pos_nodes_neigh), neg_index)
+        loss = criterion(output)
+    return loss
 
 
 def get_embeds(model, index_loader, device, args):
@@ -146,7 +148,8 @@ def get_embeds(model, index_loader, device, args):
         if not device:
             device = next(iter(model.parameters())).device
     nodes, nodes_neigh = [torch.tensor(data).to(device) for data in index_loader]
-    embeds = model.get_embeds(nodes, nodes_neigh)
+    with torch.no_grad():
+        embeds = model.get_embeds(nodes, nodes_neigh)
     all_embeds = {}
     embeds = embeds.cpu().data.numpy()
     for i, node in enumerate(index_loader[0]):
@@ -198,8 +201,10 @@ def evaluate(train_idx, val_idx, train_labels, val_labels, args, all_embeds=None
             opt.step()
 
             # val
-            logits = log(val_embeds)
-            preds = torch.argmax(logits, dim=1)
+            log.eval()
+            with torch.no_grad():
+                logits = log(val_embeds)
+                preds = torch.argmax(logits, dim=1)
 
             val_f1_macro = f1_score(val_resample_y.cpu(), preds.cpu(), average='macro')
             val_recall_macro = recall_score(val_resample_y.cpu(), preds.cpu(), average='macro')

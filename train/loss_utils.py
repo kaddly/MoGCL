@@ -1,10 +1,8 @@
 import torch
-from torch import nn
 
 
-class SigmoidCELoss(nn.Module):
+class SigmoidCELoss:
     def __init__(self, num_pos):
-        super(SigmoidCELoss, self).__init__()
         self.num_pos = num_pos
 
     def forward(self, inputs):
