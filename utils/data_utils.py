@@ -38,14 +38,11 @@ def read_data(data_set):
 
 
 def generator_pos_neg_nodes(nodes, relation_list, args):
-    if os.path.isfile(os.path.join('data', args.dataset + '_pos.pkl')) and os.path.isfile(
-            os.path.join('data', args.dataset + '_neg.pkl')):
-        f_pos_read = open(os.path.join('.', 'data', args.dataset + '_pos.pkl'), 'rb')
-        f_neg_read = open(os.path.join('.', 'data', args.dataset + '_neg.pkl'), 'rb')
-        nodes_pos = pickle.load(f_pos_read)
-        nodes_neg = pickle.load(f_neg_read)
-        f_pos_read.close()
-        f_neg_read.close()
+    print("loading pos_neg_nodes")
+    if os.path.isfile(os.path.join('data', args.dataset + '_pos_neg.pkl')):
+        f_read = open(os.path.join('.', 'data', args.dataset + '_pos_neg.pkl'), 'rb')
+        nodes_pos, nodes_neg = pickle.load(f_read)
+        f_read.close()
         return nodes_pos, nodes_neg
     num_pos = args.num_pos
     nodes_pos, nodes_neg = [], []
@@ -58,22 +55,20 @@ def generator_pos_neg_nodes(nodes, relation_list, args):
         keys = relation_homo[node].data
         if len(keys) < num_pos:
             pos = relation_homo[node].nonzero()[1].tolist()
-            nodes_pos.append(pos + [node for _ in (num_pos - len(keys))])
+            nodes_pos.append(pos + [node for _ in range(num_pos - len(keys))])
             nodes_neg.append(np.delete(nodes, pos + node).tolist()[:len(nodes) - num_pos])
         else:
             pos_neg = relation_homo[node].nonzero()[1][np.argsort(keys)]
-            nodes_pos.append(pos_neg[:num_pos].tolist)
+            nodes_pos.append(pos_neg[:num_pos].tolist())
             nodes_neg.append(np.delete(nodes, nodes_pos[node]).tolist())
-    f_pos_save = open(os.path.join('data', args.dataset + '_pos.pkl'), 'wb')
-    f_neg_save = open(os.path.join('data', args.dataset + '_neg.pkl'), 'wb')
-    pickle.dump(nodes_pos, f_pos_save)
-    pickle.dump(nodes_neg, f_neg_save)
-    f_pos_save.close()
-    f_neg_save.close()
+    f_save = open(os.path.join('data', args.dataset + '_pos_neg.pkl'), 'wb')
+    pickle.dump([nodes_pos, nodes_neg], f_save)
+    f_save.close()
     return nodes_pos, nodes_neg
 
 
 def generator_neighbors(nodes, relation_list, args):
+    print("loading neighbors")
     if os.path.isfile(os.path.join('data', args.dataset + '_neighbors.pkl')):
         f_read = open(os.path.join('.', 'data', args.dataset + '_neighbors.pkl'), 'rb')
         all_neighbors = pickle.load(f_read)

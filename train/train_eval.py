@@ -88,7 +88,7 @@ def train(args):
             args.resume = os.path.join("models", args.dataset, "checkpoint_{:04d}.pth.tar".format(best_t))
             break
     all_embeds = get_embeds(model, index_loader, device, args)
-    evaluate(all_embeds, *test_loader, args)
+    evaluate(*test_loader, args, all_embeds)
 
 
 def train_one_epoch(train_loader, model, criterion, optimizer, lr_scheduler, epoch, device, args):
@@ -139,7 +139,7 @@ def val_evaluate(model, criterion, val_loader, device=None):
 
 
 def get_embeds(model, index_loader, device, args):
-    checkpoint = torch.load(args.resume)
+    checkpoint = torch.load(os.path.join('models', args.dataset, 'model_best.pth.tar'))
     model.load_state_dict(checkpoint["state_dict"])
     if isinstance(model, nn.Module):
         model.eval()
@@ -157,7 +157,14 @@ def get_embeds(model, index_loader, device, args):
     return all_embeds
 
 
-def evaluate(all_embeds, train_idx, val_idx, train_labels, val_labels, args):
+def evaluate(train_idx, val_idx, train_labels, val_labels, args, all_embeds=None):
+    if all_embeds is None:
+        if os.path.isfile(os.path.join('embeds', args.dataset, 'nodes_embeds.pkl')):
+            with open(os.path.join("embeds", args.dataset, 'nodes_embeds.pkl'), "rb") as f:
+                all_embeds = pickle.load(f)
+                f.close()
+        else:
+            raise FileExistsError('please train before')
     ros = RandomOverSampler(random_state=args.seed)
     train_resample_x, train_resample_y = ros.fit(train_idx, train_labels)
     val_resample_x, val_resample_y = ros.fit(val_idx, val_labels)
