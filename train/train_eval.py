@@ -8,6 +8,7 @@ from sklearn.metrics import f1_score, roc_auc_score, recall_score
 from imblearn.over_sampling import RandomOverSampler
 import torch
 from torch import nn
+from torch.nn.functional import softmax
 from utils import load_data, setup_logging
 from module import MoGCL, LogReg
 from train.metric_utils import AverageMeter, ProgressMeter
@@ -151,7 +152,7 @@ def get_embeds(model, index_loader, device, args):
     with torch.no_grad():
         embeds = model.get_embeds(nodes, nodes_neigh)
     all_embeds = {}
-    embeds = embeds.cpu().data.numpy()
+    embeds = embeds.cpu().tolist()
     for i, node in enumerate(index_loader[0]):
         all_embeds[node] = embeds[i]
     with open(os.path.join("embeds", args.dataset, 'nodes_embeds.pkl'), "wb") as f:
@@ -169,15 +170,13 @@ def evaluate(train_idx, val_idx, train_labels, val_labels, args, all_embeds=None
         else:
             raise FileExistsError('please train before')
     ros = RandomOverSampler(random_state=args.seed)
-    train_resample_x, train_resample_y = ros.fit_resample(np.array(train_idx).reshape(-1, 1),
-                                                          np.array(train_labels))
-    val_resample_x, val_resample_y = ros.fit(np.array(val_idx).reshape(-1, 1), np.array(val_labels).reshape(-1, 1))
-    train_embeds, val_embeds = map(all_embeds, train_resample_x), map(all_embeds, val_resample_x)
+    train_embeds, train_resample_y = ros.fit_resample(list(map(lambda x: all_embeds[x], train_idx)), train_labels)
+    val_embeds, val_resample_y = list(map(lambda x: all_embeds[x], val_idx)), val_labels
     device = args.device
 
     train_embeds, val_embeds = torch.Tensor(train_embeds).to(device), torch.Tensor(val_embeds).to(device)
-    train_resample_y, val_resample_y = torch.tensor(train_resample_y).to(device), torch.tensor(val_resample_y).to(
-        device)
+    train_resample_y, val_resample_y = torch.tensor(train_resample_y, dtype=torch.long).to(device), torch.tensor(
+        val_resample_y, dtype=torch.long).to(device)
 
     auc_score_list = []
     macro_f1s = []
@@ -192,15 +191,15 @@ def evaluate(train_idx, val_idx, train_labels, val_labels, args, all_embeds=None
 
         val_macro_f1s = []
         val_macro_recalls = []
+        val_roc_scares = []
 
-        logits_list = []
         for iter_ in range(200):
             # train
             log.train()
             opt.zero_grad()
 
             logits = log(train_embeds)
-            loss = criterion(logits, train_resample_y)
+            loss = criterion(logits, train_resample_y.long())
 
             loss.backward()
             opt.step()
@@ -213,28 +212,22 @@ def evaluate(train_idx, val_idx, train_labels, val_labels, args, all_embeds=None
 
             val_f1_macro = f1_score(val_resample_y.cpu(), preds.cpu(), average='macro')
             val_recall_macro = recall_score(val_resample_y.cpu(), preds.cpu(), average='macro')
+            val_roc_auc = roc_auc_score(val_resample_y.cpu(), softmax(logits, dim=1)[:, 1].cpu())
 
             val_macro_f1s.append(val_f1_macro)
             val_macro_recalls.append(val_recall_macro)
-
-            logits_list.append(logits)
+            val_roc_scares.append(val_roc_auc)
 
         macro_f1s.append(max(val_macro_f1s))
         macro_recalls.append(max(val_macro_recalls))
+        auc_score_list.append(max(val_roc_scares))
 
-        max_iter = val_macro_f1s.index(max(val_macro_f1s))
-
-        # auc
-        best_logits = logits_list[max_iter]
-        best_proba = nn.functional.softmax(best_logits, dim=1)
-        auc_score_list.append(
-            roc_auc_score(y_true=val_resample_y.detach().cpu().numpy(), y_score=best_proba.detach().cpu().numpy()))
     print(
-        "\t[Classification] Macro-F1_mean: {:.4f} var: {:.4f} max: {:.4f}\nMacro-F1_mean: {:.4f} var: {:.4f} max: {:.4f}\nauc_mean: {:.4f} var: {:.4f} max: {:.4f}"
+        "[Classification]\n\tMacro-F1_mean: {:.4f} var: {:.4f} max: {:.4f}\n\tMacro-recall_mean: {:.4f} var: {:.4f} max: {:.4f}\n\tauc_mean: {:.4f} var: {:.4f} max: {:.4f}"
             .format(np.mean(macro_f1s), np.var(macro_f1s), np.max(macro_f1s),
                     np.mean(macro_recalls), np.var(macro_recalls), np.max(macro_recalls),
                     np.mean(auc_score_list), np.var(auc_score_list), np.max(auc_score_list)))
-    f = open(os.path.join("result", args.dataset, "result.txt"), "a")
-    f.write(str(np.mean(macro_f1s)) + "\t" + str(np.mean(macro_recalls)) + "\t" + str(np.mean(auc_score_list)) + "\n" +
-            str(np.max(macro_f1s)) + "\t" + str(np.max(macro_recalls)) + "\t" + str(np.max(auc_score_list)) + "\n")
-    f.close()
+    with open(os.path.join("results", args.dataset, "result.txt"), "a") as f:
+        f.write(str(np.mean(macro_f1s)) + "\t" + str(np.mean(macro_recalls)) + "\t" + str(np.mean(auc_score_list)) + "\n" +
+                str(np.max(macro_f1s)) + "\t" + str(np.max(macro_recalls)) + "\t" + str(np.max(auc_score_list)) + "\n")
+        f.close()

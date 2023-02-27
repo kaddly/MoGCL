@@ -1,6 +1,6 @@
 import argparse
 
-dataset = "amz"
+dataset = "yelp"
 
 
 def amazon_params():

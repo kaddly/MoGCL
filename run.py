@@ -13,7 +13,7 @@ def set_train_params():
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     args.batch_size = 128
-    args.epochs = 200
+    args.epochs = 100
     args.start_epoch = 0
 
     args.lr = 0.0008
