@@ -9,6 +9,7 @@ from imblearn.over_sampling import RandomOverSampler
 import torch
 from torch import nn
 from torch.nn.functional import softmax
+from torch.utils.data import TensorDataset, DataLoader
 from utils import load_data, setup_logging
 from module import MoGCL, LogReg
 from train.metric_utils import AverageMeter, ProgressMeter
@@ -56,7 +57,7 @@ def train(args):
     model.to(device)
     for epoch in range(args.start_epoch, args.epochs):
         mean_loss, lr = train_one_epoch(train_iter, model, criterion, optimizer, lr_scheduler, epoch, device, args)
-        val_loss = val_evaluate(model, criterion, val_loader, device)
+        val_loss = val_evaluate(model, criterion, val_loader, args, device)
         val_info = f"val_loss: {val_loss:>5.4f}"
         print(val_info)
         with open(results_file, "a") as f:
@@ -129,16 +130,21 @@ def train_one_epoch(train_loader, model, criterion, optimizer, lr_scheduler, epo
     return losses.avg, lr
 
 
-def val_evaluate(model, criterion, val_loader, device=None):
+def val_evaluate(model, criterion, val_loader, args, device=None):
     if isinstance(model, nn.Module):
         model.eval()
         if not device:
             device = next(iter(model.parameters())).device
-    nodes, nodes_neigh, pos_nodes, pos_nodes_neigh, neg_index = [data.to(device) for data in val_loader]
-    with torch.no_grad():
-        output = model((nodes, nodes_neigh), (pos_nodes, pos_nodes_neigh), neg_index)
-        loss = criterion(output)
-    return loss
+    val_dataset = TensorDataset(*val_loader)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size)
+    losses = []
+    for batch in val_loader:
+        nodes, nodes_neigh, pos_nodes, pos_nodes_neigh, neg_index = [data.to(device) for data in batch]
+        with torch.no_grad():
+            output = model((nodes, nodes_neigh), (pos_nodes, pos_nodes_neigh), neg_index)
+            loss = criterion(output)
+            losses.append(loss.item())
+    return sum(losses)/len(losses)
 
 
 def get_embeds(model, index_loader, device, args):
