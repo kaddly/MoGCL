@@ -141,8 +141,8 @@ def load_data(args):
                                                               random_state=args.seed, shuffle=True)
     else:
         raise ValueError("unsupported dataset")
-    all_neighbors = generator_neighbors(list(range(feat_data.shape[0])), relation_list, args)
     all_pos, all_neg = generator_pos_neg_nodes(list(range(feat_data.shape[0])), relation_list, args)
+    all_neighbors = generator_neighbors(list(range(feat_data.shape[0])), relation_list, args)
     train_dataset = MultiViewDataset(idx_train)
     collate_fn = Collate_fn(all_neighbors, all_pos, all_neg)
     train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=1, collate_fn=collate_fn)
