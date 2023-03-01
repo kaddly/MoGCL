@@ -20,7 +20,7 @@ def set_train_params():
     args.weight_decay = 0
     args.momentum = 0.9
 
-    args.resume = ""
+    args.resume = "./models/yelp/model_best.pth.tar"
     args.arch = 'MoGCL'+str(args.dim)
     args.patience = 5
     args.print_freq = 20

@@ -55,6 +55,11 @@ def train(args):
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
     model.to(device)
+    for state in optimizer.state.values():
+        for k, v in state.items():
+            if torch.is_tensor(v):
+                state[k] = v.to(device)
+
     for epoch in range(args.start_epoch, args.epochs):
         mean_loss, lr = train_one_epoch(train_iter, model, criterion, optimizer, lr_scheduler, epoch, device, args)
         val_loss = val_evaluate(model, criterion, val_loader, args, device)
