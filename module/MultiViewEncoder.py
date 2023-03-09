@@ -19,8 +19,10 @@ class MVEncoder(nn.Module):
         self.attn_size = attn_size
         self.feature_dim = feature_dim
 
+        # 节点嵌入
         self.embed_trans = nn.Parameter(torch.FloatTensor(self.feature_dim, embedding_size), requires_grad=True)
         nn.init.xavier_normal_(self.embed_trans, gain=1.414)
+        # 边嵌入
         self.u_embed_trans = nn.Parameter(torch.FloatTensor(self.num_view, self.feature_dim, embedding_u_size), requires_grad=True)
         nn.init.xavier_normal_(self.u_embed_trans, gain=1.414)
         if feat_drop > 0:
