@@ -60,4 +60,4 @@ class ViewAttention(Attention):
             dim=1
         ).unsqueeze(1)
         # output.shape=(batch_size,hidden_dim)
-        return F.elu(torch.matmul(attention, inputs_neigh).squeeze(1))
+        return torch.matmul(attention, inputs_neigh).squeeze(1)
