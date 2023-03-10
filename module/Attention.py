@@ -39,7 +39,7 @@ class NeighborEncoder(Attention):
             ).squeeze(2),
             dim=1
         ).unsqueeze(1)
-        return torch.matmul(attention, inputs).squeeze(1).reshape(n, nv, h)
+        return F.elu(torch.matmul(attention, inputs).squeeze(1).reshape(n, nv, h))
 
 
 class ViewAttention(Attention):
@@ -59,4 +59,4 @@ class ViewAttention(Attention):
             dim=1
         ).unsqueeze(1)
         # output.shape=(batch_size,hidden_dim)
-        return torch.matmul(attention, inputs).squeeze(1)
+        return F.elu(torch.matmul(attention, inputs).squeeze(1))
