@@ -48,8 +48,8 @@ class MVEncoder(nn.Module):
         node_embed_neighbors = torch.bmm(node_neigh.permute(1, 0, 2, 3).reshape(self.num_view, -1, self.feature_dim),
                                          self.u_embed_trans).reshape(self.num_view, inputs.shape[0], -1,
                                                                      self.embedding_u_size).permute(1, 0, 2, 3)
-        node_view_embed = self.NeighborEncoder(self.feat_drop(node_embed_neighbors))  # (batch_size, num_view, embedding_u_size)
-        node_u_embed = self.View_attention(node_view_embed)  # (batch_size, embedding_u_size)
+        node_view_embed = self.NeighborEncoder(node_embed, self.feat_drop(node_embed_neighbors))  # (batch_size, num_view, embedding_u_size)
+        node_u_embed = self.View_attention(node_embed, node_view_embed)  # (batch_size, embedding_u_size)
         node_embed = self.fc(torch.concat([node_embed, torch.matmul(node_u_embed, self.trans_weights)], dim=1))
         last_node_embed = F.normalize(node_embed, dim=1)
         return last_node_embed
