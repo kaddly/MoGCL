@@ -12,7 +12,7 @@ random.seed(args.seed)
 def set_train_params():
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    args.batch_size = 256
+    args.batch_size = 128
     args.epochs = 100
     args.start_epoch = 0
 
@@ -22,8 +22,8 @@ def set_train_params():
 
     args.resume = ""
     args.arch = 'MoGCL'+str(args.dim)
-    args.patience = 5
-    args.print_freq = 20
+    args.patience = 10
+    args.print_freq = 10
 
     args.eva_lr = 0.01
     args.eva_wd = 0

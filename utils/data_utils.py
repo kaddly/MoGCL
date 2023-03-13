@@ -99,61 +99,16 @@ class MultiViewDataset(Dataset):
         return self.nodes[item]
 
 
-class Collate_fn:
-    def __init__(self, all_neighbors, num_pos, relation_list):
-        self.all_neighbors = all_neighbors
-        self.num_pos = num_pos
-        self.relation_homo = None
-        for relation in relation_list:
-            if self.relation_homo is None:
-                self.relation_homo = relation
-            self.relation_homo += relation
-        self.all_nodes = list(range(self.relation_homo.shape[0]))
-
-    def get_nodes_neigh(self, nodes):
-        nodes_neigh = []
-        for node in nodes:
-            nodes_neigh.append(self.all_neighbors[node])
-        return [nodes, nodes_neigh]
-
-    def __call__(self, data):
-        nodes, nodes_neigh, nodes_pos, nodes_pos_neigh, nodes_neg = [], [], [], [], []
-        for node in data:
-            nodes.append(node)
-            keys = self.relation_homo[node].data
-            if len(keys) < self.num_pos:
-                pos = self.relation_homo[node].nonzero()[1].tolist()
-                nodes_pos.append(pos + [node for _ in range(self.num_pos - len(keys))])
-                nodes_neg.append(np.delete(self.all_nodes, pos + [node]).tolist()[:len(self.all_nodes) - self.num_pos])
-            else:
-                pos_neg = self.relation_homo[node].nonzero()[1][np.argsort(keys)]
-                nodes_pos.append(pos_neg[:self.num_pos].tolist())
-                nodes_neg.append(np.delete(self.all_nodes, nodes_pos[-1]).tolist())
-            nodes_neigh.append(self.all_neighbors[node])
-            pos_neigh = []
-            for pos in nodes_pos[-1]:
-                pos_neigh.append(self.all_neighbors[pos])
-            nodes_pos_neigh.append(pos_neigh)
-        return [torch.tensor(nodes), torch.tensor(nodes_neigh), torch.tensor(nodes_pos), torch.tensor(nodes_pos_neigh),
-                torch.tensor(nodes_neg)]
-
-
-# def read_pos_neg(num_nodes, args):
-#     print("loading pos_neg_nodes")
-#     nodes_pos, nodes_neg = [], []
-#     for i in range(0, num_nodes, 4000):
-#         f_read = open(os.path.join('data', args.dataset + '_pos_neg_'+str(i)+'.pkl'), 'rb')
-#         node_pos, node_neg = pickle.load(f_read)
-#         nodes_pos.extend(node_pos), nodes_neg.extend(node_neg)
-#     return nodes_pos, nodes_neg
-#
-#
 # class Collate_fn:
-#     def __init__(self, all_neighbors, all_pos, all_neg):
-#         assert len(all_neighbors) == len(all_pos) == len(all_neg)
+#     def __init__(self, all_neighbors, num_pos, relation_list):
 #         self.all_neighbors = all_neighbors
-#         self.all_pos = all_pos
-#         self.all_neg = all_neg
+#         self.num_pos = num_pos
+#         self.relation_homo = None
+#         for relation in relation_list:
+#             if self.relation_homo is None:
+#                 self.relation_homo = relation
+#             self.relation_homo += relation
+#         self.all_nodes = list(range(self.relation_homo.shape[0]))
 #
 #     def get_nodes_neigh(self, nodes):
 #         nodes_neigh = []
@@ -165,8 +120,15 @@ class Collate_fn:
 #         nodes, nodes_neigh, nodes_pos, nodes_pos_neigh, nodes_neg = [], [], [], [], []
 #         for node in data:
 #             nodes.append(node)
-#             nodes_pos.append(self.all_pos[node])
-#             nodes_neg.append(self.all_neg[node])
+#             keys = self.relation_homo[node].data
+#             if len(keys) < self.num_pos:
+#                 pos = self.relation_homo[node].nonzero()[1].tolist()
+#                 nodes_pos.append(pos + [node for _ in range(self.num_pos - len(keys))])
+#                 nodes_neg.append(np.delete(self.all_nodes, pos + [node]).tolist()[:len(self.all_nodes) - self.num_pos])
+#             else:
+#                 pos_neg = self.relation_homo[node].nonzero()[1][np.argsort(keys)]
+#                 nodes_pos.append(pos_neg[:self.num_pos].tolist())
+#                 nodes_neg.append(np.delete(self.all_nodes, nodes_pos[-1]).tolist())
 #             nodes_neigh.append(self.all_neighbors[node])
 #             pos_neigh = []
 #             for pos in nodes_pos[-1]:
@@ -174,6 +136,44 @@ class Collate_fn:
 #             nodes_pos_neigh.append(pos_neigh)
 #         return [torch.tensor(nodes), torch.tensor(nodes_neigh), torch.tensor(nodes_pos), torch.tensor(nodes_pos_neigh),
 #                 torch.tensor(nodes_neg)]
+
+#
+# def read_pos_neg(num_nodes, args):
+#     print("loading pos_neg_nodes")
+#     nodes_pos, nodes_neg = [], []
+#     for i in range(0, num_nodes, 4000):
+#         f_read = open(os.path.join('data', args.dataset + '_pos_neg_'+str(i)+'.pkl'), 'rb')
+#         node_pos, node_neg = pickle.load(f_read)
+#         nodes_pos.extend(node_pos), nodes_neg.extend(node_neg)
+#     return nodes_pos, nodes_neg
+
+
+class Collate_fn:
+    def __init__(self, all_neighbors, all_pos, all_neg):
+        assert len(all_neighbors) == len(all_pos) == len(all_neg)
+        self.all_neighbors = all_neighbors
+        self.all_pos = all_pos
+        self.all_neg = all_neg
+
+    def get_nodes_neigh(self, nodes):
+        nodes_neigh = []
+        for node in nodes:
+            nodes_neigh.append(self.all_neighbors[node])
+        return [nodes, nodes_neigh]
+
+    def __call__(self, data):
+        nodes, nodes_neigh, nodes_pos, nodes_pos_neigh, nodes_neg = [], [], [], [], []
+        for node in data:
+            nodes.append(node)
+            nodes_pos.append(self.all_pos[node])
+            nodes_neg.append(self.all_neg[node])
+            nodes_neigh.append(self.all_neighbors[node])
+            pos_neigh = []
+            for pos in nodes_pos[-1]:
+                pos_neigh.append(self.all_neighbors[pos])
+            nodes_pos_neigh.append(pos_neigh)
+        return [torch.tensor(nodes), torch.tensor(nodes_neigh), torch.tensor(nodes_pos), torch.tensor(nodes_pos_neigh),
+                torch.tensor(nodes_neg)]
 
 
 def load_data(args):
@@ -191,11 +191,12 @@ def load_data(args):
     else:
         raise ValueError("unsupported dataset")
     all_neighbors = generator_neighbors(list(range(feat_data.shape[0])), relation_list, args)
+    all_pos, all_neg = generator_pos_neg_nodes(list(range(feat_data.shape[0])),relation_list, args)
     # all_pos = generator_pos_nodes(list(range(feat_data.shape[0])), relation_list, args)
     train_dataset = MultiViewDataset(idx_train)
-    collate_fn = Collate_fn(all_neighbors, args.num_pos, relation_list)
+    # collate_fn = Collate_fn(all_neighbors, args.num_pos, relation_list)
     # all_pos, all_neg = read_pos_neg(45954, args)
-    # collate_fn = Collate_fn(all_neighbors, all_pos, all_neg)
+    collate_fn = Collate_fn(all_neighbors, all_pos, all_neg)
     train_iter = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=1, collate_fn=collate_fn)
     print('test_size:'+str(len(idx_val)))
     return train_iter, feat_data, collate_fn(idx_val), collate_fn.get_nodes_neigh(index), (idx_train, idx_val, y_train, y_val)
