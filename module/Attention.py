@@ -31,8 +31,8 @@ class NeighborEncoder(Attention):
         n, nv, nb, h = inputs_neigh.shape
         # shape:(batch_size * num_view, num_neighbor, hidden_dim)
         inputs_neigh = inputs_neigh.reshape(-1, nb, h)
-        inputs = inputs.repeat_interleave(nv, 0)
-        inputs_trans = torch.matmul(torch.cat([inputs, inputs_neigh]), self.fc)
+        inputs = inputs.repeat_interleave(nv * nb, 0).reshape(-1, nb, h)
+        inputs_trans = torch.matmul(torch.cat([inputs, inputs_neigh], dim=-1), self.fc)
         # shape:(batch_size * num_view, 1, num_neighbor)
         attention = F.softmax(
             torch.matmul(
@@ -51,6 +51,8 @@ class ViewAttention(Attention):
         # inputs.shape=(batch_size, num_view, hidden_dim)
         attn_curr = self.attn_drop(self.trans_weights)
         # inputs_trans.shape=(batch_size, num_view, attn_dim)
+        n, nv, h = inputs_neigh.shape
+        inputs = inputs.repeat_interleave(nv, 0).reshape(-1, nv, h)
         inputs_trans = torch.matmul(torch.cat([inputs, inputs_neigh], dim=-1), self.fc)
         # attention.shape=(batch_size, 1, num_view)
         attention = F.softmax(
