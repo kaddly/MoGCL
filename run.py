@@ -30,12 +30,12 @@ def set_train_params():
 
 
 def set_model_params():
-    args.dim = 16
-    args.attn_size = 16
+    args.dim = 64
+    args.attn_size = 64
     args.feat_drop = -1
     args.attn_drop = 0.3
-    args.moco_m = 0.996
-    args.moco_t = 0.1
+    args.moco_m = 0.998
+    args.moco_t = 0.07
     args.is_mlp = True
 
 
