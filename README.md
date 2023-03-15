@@ -13,3 +13,9 @@
 
 ![image-20230315100258588](img/多视图动量对比学习模型.png)
 
+## 所需环境
+
+- MinConda（建议使用）
+- python3.6/3.7/3.8
+- pycharm（IDE）
+- pytorch 1.20（pip package）
