@@ -15,7 +15,7 @@
 
 ## 所需环境
 
-- MinConda（建议使用）
+- miniconda（建议使用）
 - python3.6/3.7/3.8
 - pycharm（IDE）
 - pytorch 1.20（pip package）
